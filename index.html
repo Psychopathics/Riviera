@@ -10,8 +10,8 @@
 <nav><button onclick="page('home')">Start</button><button onclick="page('members')">Mitglieder</button><button onclick="page('leader')">Führungslager</button><button onclick="page('general')">Reguläres Lager</button><button onclick="page('attendance')">Anwesenheit</button><button onclick="page('routes')">Routen</button><button onclick="page('dues')">Wochenabgabe</button><button onclick="page('protocol')">Gesamtprotokoll</button></nav><div id="content" class="panel"></div></section></main><footer>RIVERA · Zentrale Online-Datenbank · Änderungen werden live synchronisiert</footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 // Nach dem Anlegen deines Supabase-Projekts hier URL und anon key eintragen.
-const SUPABASE_URL='HIER_SUPABASE_PROJECT_URL_EINTRAGEN';
-const SUPABASE_ANON_KEY='HIER_SUPABASE_ANON_KEY_EINTRAGEN';
+const SUPABASE_URL='sb_publishable_8KFnwIUZGmkLX7JEzVmmmw_WfxNccYo';
+const SUPABASE_ANON_KEY='sb_secret_Agh61Vxo1VMUHMe3gGmThA_SVBAd5lI';
 let sb=null,user=null,profile=null,active='home',channel=null,cache={members:[],users:[],leader:{items:[],logs:[]},general:{items:[],logs:[]},attendance:[],routes:[],dues:[]};
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isAdmin=()=>profile?.role==='admin';
