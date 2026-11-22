@@ -1,0 +1,59 @@
+RIVIERA – EINRICHTUNGSANLEITUNG
+================================
+
+DATEIEN
+- riviera.html: eigenständige, lokal vorführbare Browser-Demo.
+- riviera_setup.sql: Tabellen, Constraints, RLS, RPCs, Audit und Realtime-Publikation.
+- riviera_supabase/functions/riviera-auth/index.ts: Edge Function für username-basierte Registrierung, Login und einmaliges Admin-Setup.
+
+1. DEMO
+Öffne riviera.html in einem aktuellen Browser. Demo-Zugang:
+  Benutzername: admin
+  Passwort: RivieraDemo2026!
+
+Die Demo verwendet localStorage dieses Browsers. Sie ist NICHT geräteübergreifend, hat keine echte Authentifizierung und stellt keine Sicherheitsgrenze dar. Keine echten Passwörter oder vertraulichen Daten in der Demo verwenden. Demo-Passwörter sind nur zur Vorführung lokal abgelegt.
+
+2. SUPABASE-DATENBANK
+- Öffne das Supabase-Projekt https://ztqyszwdndxuyxtlvbgq.supabase.co.
+- Gehe zu SQL Editor und führe riviera_setup.sql vollständig aus.
+- Prüfe unter Database > Publications, dass supabase_realtime die Tabellen profiles, inventory_items, inventory_logs und attendance enthält (das SQL versucht sie hinzuzufügen; bei bereits vorhandenen Einträgen ggf. die entsprechenden ALTER PUBLICATION-Zeilen überspringen).
+- RLS muss für alle Tabellen aktiviert bleiben. Es gibt absichtlich keine direkten Client-Schreib-Policies für kritische Tabellen. Mutationen laufen über geprüfte RPCs.
+
+3. EDGE FUNCTION UND BENUTZERNAME/PASSWORT
+Supabase Auth benötigt intern eine Identität. Die Edge Function bildet Benutzernamen auf nicht zustellbare interne Adressen der Domain members.riviera.invalid ab. Mitglieder müssen keine E-Mail-Adresse angeben.
+- Installiere Supabase CLI und melde dich an; verknüpfe das Projekt.
+- Lege serverseitige Secrets für die Function fest: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY sowie RIVIERA_SETUP_TOKEN (ein langes zufälliges Einmal-Setup-Geheimnis).
+- Der Service Role Key gehört AUSSCHLIESSLICH als Secret in die Edge-Function-Umgebung. Niemals in riviera.html, Quellcode oder Browser-Konfiguration eintragen.
+- Deploye die Function aus dem Projektverzeichnis: supabase functions deploy riviera-auth.
+- Die Function nutzt Supabase Auth zum sicheren Passwort-Hashing. Passwörter werden nicht in der profiles-Tabelle gespeichert.
+- Lege den Hauptadmin einmalig durch POST an https://ztqyszwdndxuyxtlvbgq.supabase.co/functions/v1/riviera-auth an, JSON-Body:
+  {"action":"setup_admin","username":"admin","password":"EIN_LANGES_EIGENES_PASSWORT","setup_token":"DEIN_RIVIERA_SETUP_TOKEN"}
+  Danach RIVIERA_SETUP_TOKEN serverseitig entfernen/rotieren. Das Admin-Konto hat dauerhaft is_superadmin=true und keinen Rang.
+- Registrierung: POST mit {"action":"register","username":"mitglied","password":"mindestens10Zeichen"}.
+- Login: POST mit {"action":"login","username":"admin","password":"..."}. Die Function gibt Auth-Tokens nur bei Status approved zurück. Pending/rejected Konten erhalten keinen Zugang.
+
+4. SCHLÜSSEL UND HTML-KONFIGURATION
+Die HTML-Datei enthält jetzt vorausgefüllt:
+- Project URL: https://ztqyszwdndxuyxtlvbgq.supabase.co
+- Publishable Key: der vom Betreiber bereitgestellte sb_publishable_-Schlüssel.
+Die REST-Basisadresse lautet https://ztqyszwdndxuyxtlvbgq.supabase.co/rest/v1/ . Nicht nochmals /rest/v1/ an die Project URL anhängen und nicht die REST-Basisadresse als Project URL in das Feld eintragen.
+Der Publishable Key ist für Browsernutzung gedacht. Niemals den Service Role Key verwenden. Online-Login und Realtime sind in dieser HTML-Version weiterhin nicht angebunden; das Vorbefüllen der Konfiguration aktiviert sie nicht.
+
+5. WICHTIGER IMPLEMENTIERUNGSSTATUS / GRENZEN
+Diese Lieferung enthält eine umfangreiche, vorführbare lokale Demo sowie die Datenbank- und Auth-Serverbausteine. Die HTML-Datei verbindet sich in dieser Version NOCH NICHT vollständig mit Supabase: Online-Konfiguration wird gespeichert, aber Online-Login/Realtime-Aufrufe sind absichtlich nicht als fertig ausgegeben. Vor produktivem Einsatz muss ein Supabase-Client in die HTML integriert und die RPCs/Subscriptions angebunden und getestet werden.
+Die SQL-RPCs decken atomare Lagerbuchungen (Zeilensperre/Bestandsprüfung), Artikelpflege, Rechtevergabe mit Delegationsgrenze/Audit, Registrierungsfreigabe und Anwesenheitsänderung ab. Die Quoten-View berücksichtigt Anwesend + Verspätet geteilt durch Anwesend + Verspätet + Abwesend; Entschuldigt wird ausgeschlossen. Wochen werden nicht gelöscht, sondern anhand des Datums fortlaufend angezeigt.
+
+Noch nicht vollständig produktionsfertig: vollständige Online-UI-Anbindung in riviera.html, Online-Realtime-Client-Abonnements/Refresh, serverseitige Mitgliederanlage durch berechtigte Admins, vollständige Auditierung aller Adminaktionen, UI für Lagerkategorien/Artikelbearbeitung/-archivierung sowie automatisierte Integrationstests. Die lokale Demo implementiert nicht dieselben Sicherheitsgarantien wie die Datenbank. SQL und Edge Function sollten vor Produktivbetrieb durch eine fachkundige Person geprüft werden.
+
+6. SICHERHEITSCHECKLISTE VOR LIVEBETRIEB
+[ ] SQL ohne Fehler ausgeführt; RLS bei allen Tabellen aktiv.
+[ ] Edge Function deployed und Secrets ausschließlich serverseitig gesetzt.
+[ ] Einmal-Setup-Token nach Adminanlage entfernt/rotiert.
+[ ] Adminpasswort individuell und stark gewählt.
+[ ] Pending- und Rejected-Login getestet.
+[ ] Nicht-Admin kann weder Adminrechte noch Adminprofil verändern.
+[ ] Delegation kann keine Rechte außerhalb delegable_permissions vergeben.
+[ ] Zwei parallele Lagerbuchungen gegen denselben Bestand getestet.
+[ ] Abgang über Bestand wird abgewiesen.
+[ ] Realtime-Änderung mit zwei separaten Geräten getestet, sobald der Client angeschlossen ist.
+[ ] Backup-/Restore-Verfahren eingerichtet.
